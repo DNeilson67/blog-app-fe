@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { toast } from 'react-toastify';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBlog } from '@/contexts/BlogContext';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -22,7 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { AlertCircle, ArrowLeft, Eye, Calendar, User, X } from 'lucide-react';
+import { ArrowLeft, Eye, Calendar, User, X } from 'lucide-react';
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -31,7 +31,6 @@ export default function CreatePostPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
-  const [error, setError] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -46,16 +45,15 @@ export default function CreatePostPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
 
     // Validation
     if (!title.trim()) {
-      setError('Title is required');
+      toast.error('Title is required');
       return;
     }
 
     if (!content.trim()) {
-      setError('Content is required');
+      toast.error('Content is required');
       return;
     }
 
@@ -71,6 +69,7 @@ export default function CreatePostPage() {
       authorName: user.name,
     });
 
+    toast.success('Post created successfully!');
     router.push('/');
   };
 
@@ -91,13 +90,6 @@ export default function CreatePostPage() {
         </CardHeader>
         <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
                 <div className="space-y-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input

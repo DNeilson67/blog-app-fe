@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBlog } from '@/contexts/BlogContext';
 import { SessionInfo } from '@/components/SessionInfo';
@@ -13,8 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, Calendar, Upload, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { User, Calendar, Upload, Edit, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -39,8 +39,6 @@ export default function ProfilePage() {
   const [name, setName] = useState('');
   const [profilePicture, setProfilePicture] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,37 +74,32 @@ export default function ProfilePage() {
 
     // Check file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      setError('Image size must be less than 2MB');
+      toast.error('Image size must be less than 2MB');
       return;
     }
 
     // Check file type
     if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
+      toast.error('Please upload an image file');
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
       setProfilePicture(reader.result as string);
-      setError('');
     };
     reader.readAsDataURL(file);
   };
 
   const handleUpdateProfile = () => {
-    setError('');
-    setSuccess('');
-
     if (!name.trim()) {
-      setError('Name is required');
+      toast.error('Name is required');
       return;
     }
 
     updateProfile(name.trim(), profilePicture);
     setIsEditing(false);
-    setSuccess('Profile updated successfully!');
-    setTimeout(() => setSuccess(''), 3000);
+    toast.success('Profile updated successfully!');
   };
 
   const handleDeletePost = () => {
@@ -114,6 +107,7 @@ export default function ProfilePage() {
       deletePost(postToDelete);
       setPostToDelete(null);
       setDeleteDialogOpen(false);
+      toast.success('Post deleted successfully!');
     }
   };
 
@@ -129,19 +123,6 @@ export default function ProfilePage() {
               <CardTitle>Profile Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {success && (
-                <Alert className="bg-green-50 text-green-900 border-green-200">
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
-
               {/* Avatar */}
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-32 w-32">
