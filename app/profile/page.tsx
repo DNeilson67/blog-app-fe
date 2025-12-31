@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBlog } from '@/contexts/BlogContext';
+import { SessionInfo } from '@/components/SessionInfo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -282,6 +283,11 @@ export default function ProfilePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Session Information */}
+          <div className="mt-6">
+            <SessionInfo />
+          </div>
         </div>
       </div>
 

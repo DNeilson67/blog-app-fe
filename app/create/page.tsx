@@ -44,7 +44,7 @@ export default function CreatePostPage() {
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -62,16 +62,18 @@ export default function CreatePostPage() {
     // Create excerpt from content (first 150 characters)
     const excerpt = content.replace(/[#*`]/g, '').slice(0, 150) + '...';
 
-    createPost({
-      title: title.trim(),
-      content: content.trim(),
-      excerpt,
-      category: category.trim() || undefined,
-      authorId: user.id,
-      authorName: user.name,
-    });
+    try {
+      await createPost({
+        title: title.trim(),
+        content: content.trim(),
+        excerpt,
+        category: category.trim() || undefined,
+      });
 
-    router.push('/');
+      router.push('/');
+    } catch (err) {
+      setError('Failed to create post');
+    }
   };
 
   return (

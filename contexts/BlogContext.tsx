@@ -2,19 +2,21 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Post, Comment } from '@/lib/types';
-import { mockPosts, mockComments } from '@/lib/mockData';
+import { postsApi, commentsApi } from '@/lib/api';
 
 interface BlogContextType {
   posts: Post[];
   comments: Comment[];
-  createPost: (post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updatePost: (id: string, post: Partial<Post>) => void;
-  deletePost: (id: string) => void;
-  createComment: (comment: Omit<Comment, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateComment: (id: string, content: string) => void;
-  deleteComment: (id: string) => void;
+  createPost: (post: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => Promise<void>;
+  updatePost: (id: string, post: Partial<Post>) => Promise<void>;
+  deletePost: (id: string) => Promise<void>;
+  createComment: (comment: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => Promise<void>;
+  updateComment: (id: string, content: string) => Promise<void>;
+  deleteComment: (id: string) => Promise<void>;
   getPostById: (id: string) => Post | undefined;
   getCommentsByPostId: (postId: string) => Comment[];
+  refreshPosts: () => Promise<void>;
+  refreshComments: (postId: string) => Promise<void>;
 }
 
 const BlogContext = createContext<BlogContextType | undefined>(undefined);
@@ -23,100 +25,143 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
 
-  // Initialize data from localStorage or use mock data
-  useEffect(() => {
-    const storedPosts = localStorage.getItem('posts');
-    const storedComments = localStorage.getItem('comments');
-
-    if (storedPosts) {
-      const parsedPosts = JSON.parse(storedPosts);
-      // Convert date strings back to Date objects
-      const postsWithDates = parsedPosts.map((post: any) => ({
+  // Fetch posts from API
+  const refreshPosts = async () => {
+    try {
+      const postsData = await postsApi.getAll();
+      const formattedPosts = postsData.map((post: any) => ({
         ...post,
         createdAt: new Date(post.createdAt),
         updatedAt: new Date(post.updatedAt),
       }));
-      setPosts(postsWithDates);
-    } else {
-      setPosts(mockPosts);
-      localStorage.setItem('posts', JSON.stringify(mockPosts));
+      setPosts(formattedPosts);
+    } catch (error) {
+      console.error('Failed to fetch posts:', error);
     }
+  };
 
-    if (storedComments) {
-      const parsedComments = JSON.parse(storedComments);
-      const commentsWithDates = parsedComments.map((comment: any) => ({
+  // Fetch comments for a specific post
+  const refreshComments = async (postId: string) => {
+    try {
+      const commentsData = await commentsApi.getByPostId(postId);
+      const formattedComments = commentsData.map((comment: any) => ({
         ...comment,
         createdAt: new Date(comment.createdAt),
         updatedAt: new Date(comment.updatedAt),
       }));
-      setComments(commentsWithDates);
-    } else {
-      setComments(mockComments);
-      localStorage.setItem('comments', JSON.stringify(mockComments));
+      
+      // Update comments state, keeping comments from other posts
+      setComments(prev => [
+        ...prev.filter(c => c.postId !== postId),
+        ...formattedComments
+      ]);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
     }
+  };
+
+  // Initialize data from API
+  useEffect(() => {
+    refreshPosts();
   }, []);
 
-  const createPost = (postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newPost: Post = {
-      ...postData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
+    try {
+      const newPost = await postsApi.create({
+        title: postData.title,
+        content: postData.content,
+        excerpt: postData.excerpt,
+        category: postData.category,
+      });
 
-    const updatedPosts = [newPost, ...posts];
-    setPosts(updatedPosts);
-    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+      const formattedPost: Post = {
+        ...newPost,
+        createdAt: new Date(newPost.createdAt),
+        updatedAt: new Date(newPost.updatedAt),
+      };
+
+      setPosts(prev => [formattedPost, ...prev]);
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      throw error;
+    }
   };
 
-  const updatePost = (id: string, postData: Partial<Post>) => {
-    const updatedPosts = posts.map((post) =>
-      post.id === id
-        ? { ...post, ...postData, updatedAt: new Date() }
-        : post
-    );
-    setPosts(updatedPosts);
-    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  const updatePost = async (id: string, postData: Partial<Post>) => {
+    try {
+      const updatedPost = await postsApi.update(id, {
+        title: postData.title,
+        content: postData.content,
+        excerpt: postData.excerpt,
+        category: postData.category,
+      });
+
+      const formattedPost: Post = {
+        ...updatedPost,
+        createdAt: new Date(updatedPost.createdAt),
+        updatedAt: new Date(updatedPost.updatedAt),
+      };
+
+      setPosts(prev => prev.map(post => post.id === id ? formattedPost : post));
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      throw error;
+    }
   };
 
-  const deletePost = (id: string) => {
-    const updatedPosts = posts.filter((post) => post.id !== id);
-    setPosts(updatedPosts);
-    localStorage.setItem('posts', JSON.stringify(updatedPosts));
-
-    // Also delete associated comments
-    const updatedComments = comments.filter((comment) => comment.postId !== id);
-    setComments(updatedComments);
-    localStorage.setItem('comments', JSON.stringify(updatedComments));
+  const deletePost = async (id: string) => {
+    try {
+      await postsApi.delete(id);
+      setPosts(prev => prev.filter(post => post.id !== id));
+      setComments(prev => prev.filter(comment => comment.postId !== id));
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      throw error;
+    }
   };
 
-  const createComment = (commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newComment: Comment = {
-      ...commentData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  const createComment = async (commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
+    try {
+      const newComment = await commentsApi.create(commentData.postId, commentData.content);
 
-    const updatedComments = [...comments, newComment];
-    setComments(updatedComments);
-    localStorage.setItem('comments', JSON.stringify(updatedComments));
+      const formattedComment: Comment = {
+        ...newComment,
+        createdAt: new Date(newComment.createdAt),
+        updatedAt: new Date(newComment.updatedAt),
+      };
+
+      setComments(prev => [formattedComment, ...prev]);
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+      throw error;
+    }
   };
 
-  const updateComment = (id: string, content: string) => {
-    const updatedComments = comments.map((comment) =>
-      comment.id === id
-        ? { ...comment, content, updatedAt: new Date() }
-        : comment
-    );
-    setComments(updatedComments);
-    localStorage.setItem('comments', JSON.stringify(updatedComments));
+  const updateComment = async (id: string, content: string) => {
+    try {
+      const updatedComment = await commentsApi.update(id, content);
+
+      const formattedComment: Comment = {
+        ...updatedComment,
+        createdAt: new Date(updatedComment.createdAt),
+        updatedAt: new Date(updatedComment.updatedAt),
+      };
+
+      setComments(prev => prev.map(comment => comment.id === id ? formattedComment : comment));
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      throw error;
+    }
   };
 
-  const deleteComment = (id: string) => {
-    const updatedComments = comments.filter((comment) => comment.id !== id);
-    setComments(updatedComments);
-    localStorage.setItem('comments', JSON.stringify(updatedComments));
+  const deleteComment = async (id: string) => {
+    try {
+      await commentsApi.delete(id);
+      setComments(prev => prev.filter(comment => comment.id !== id));
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      throw error;
+    }
   };
 
   const getPostById = (id: string) => {
@@ -140,6 +185,8 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         deleteComment,
         getPostById,
         getCommentsByPostId,
+        refreshPosts,
+        refreshComments,
       }}
     >
       {children}

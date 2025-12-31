@@ -59,7 +59,7 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -77,14 +77,18 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
     // Create excerpt from content (first 150 characters)
     const excerpt = content.replace(/[#*`]/g, '').slice(0, 150) + '...';
 
-    updatePost(post.id, {
-      title: title.trim(),
-      content: content.trim(),
-      excerpt,
-      category: category.trim() || undefined,
-    });
+    try {
+      await updatePost(post.id, {
+        title: title.trim(),
+        content: content.trim(),
+        excerpt,
+        category: category.trim() || undefined,
+      });
 
-    router.push(`/post/${post.id}`);
+      router.push(`/post/${post.id}`);
+    } catch (err) {
+      setError('Failed to update post');
+    }
   };
 
   return (

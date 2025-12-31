@@ -1,79 +1,145 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User, AuthContextType } from '@/lib/types';
-import { mockUsers } from '@/lib/mockData';
+import { authApi, setSessionExpiredCallback } from '@/lib/api';
+import { 
+  getStoredToken, 
+  storeToken, 
+  removeToken, 
+  isTokenExpired,
+  isStoredTokenValid,
+  getTokenTimeRemaining,
+  getTokenExpirationDate 
+} from '@/lib/tokenUtils';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Helper function to create a mock JWT token
-const createMockToken = (userId: string): string => {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ userId, exp: Date.now() + 86400000 }));
-  const signature = btoa('mock-signature');
-  return `${header}.${payload}.${signature}`;
-};
-
-// Helper function to decode mock JWT token
-const decodeMockToken = (token: string): { userId: string } | null => {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload.exp < Date.now()) return null;
-    return { userId: payload.userId };
-  } catch {
-    return null;
-  }
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize auth state from localStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
-    const storedUsers = localStorage.getItem('users');
+  // Handle session expiration
+  const handleSessionExpired = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    removeToken();
+    setSessionExpired(true);
     
-    // Initialize users in localStorage if not present
-    if (!storedUsers) {
-      localStorage.setItem('users', JSON.stringify(mockUsers));
+    if (sessionCheckInterval.current) {
+      clearInterval(sessionCheckInterval.current);
+      sessionCheckInterval.current = null;
     }
+  }, []);
 
-    if (storedToken) {
-      const decoded = decodeMockToken(storedToken);
-      if (decoded) {
-        const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-        const foundUser = users.find((u) => u.id === decoded.userId);
-        if (foundUser) {
-          setUser(foundUser);
-          setToken(storedToken);
-        } else {
-          localStorage.removeItem('auth_token');
+  // Check token expiration periodically
+  useEffect(() => {
+    const checkTokenExpiration = () => {
+      const storedToken = getStoredToken();
+      
+      if (!storedToken) {
+        if (user) {
+          handleSessionExpired();
         }
-      } else {
-        localStorage.removeItem('auth_token');
+        return;
       }
-    }
-    setIsLoading(false);
+
+      if (isTokenExpired(storedToken)) {
+        console.log('Token expired, logging out...');
+        handleSessionExpired();
+        return;
+      }
+
+      // Log time remaining (for debugging)
+      const timeRemaining = getTokenTimeRemaining(storedToken);
+      if (timeRemaining < 300) { // Less than 5 minutes
+        console.log(`Session expires in ${Math.floor(timeRemaining / 60)} minutes`);
+      }
+    };
+
+    // Check immediately
+    checkTokenExpiration();
+
+    // Check every minute
+    sessionCheckInterval.current = setInterval(checkTokenExpiration, 60000);
+
+    return () => {
+      if (sessionCheckInterval.current) {
+        clearInterval(sessionCheckInterval.current);
+      }
+    };
+  }, [user, handleSessionExpired]);
+
+  // Set up session expired callback for API calls
+  useEffect(() => {
+    setSessionExpiredCallback(handleSessionExpired);
+  }, [handleSessionExpired]);
+
+  // Initialize auth state from localStorage and fetch user profile
+  useEffect(() => {
+    const initAuth = async () => {
+      const storedToken = getStoredToken();
+      
+      if (storedToken && isStoredTokenValid()) {
+        setToken(storedToken);
+        
+        const expirationDate = getTokenExpirationDate(storedToken);
+        if (expirationDate) {
+          console.log('Session valid until:', expirationDate.toLocaleString());
+        }
+        
+        try {
+          const userData = await authApi.getProfile();
+          setUser({
+            ...userData,
+            password: '', // Password not returned from API
+            createdAt: new Date(userData.createdAt),
+          });
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+          removeToken();
+          setToken(null);
+        }
+      } else if (storedToken) {
+        // Token exists but is expired
+        console.log('Stored token is expired, clearing session');
+        removeToken();
+      }
+      
+      setIsLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find((u) => u.email === email && u.password === password);
+    try {
+      const response = await authApi.login(email, password);
+      
+      setUser({
+        ...response.user,
+        password: '', // Don't store password
+        createdAt: new Date(response.user.createdAt),
+      });
+      setToken(response.token);
+      storeToken(response.token);
+      setSessionExpired(false);
 
-    if (!foundUser) {
-      return { success: false, error: 'Invalid email or password' };
+      const expirationDate = getTokenExpirationDate(response.token);
+      if (expirationDate) {
+        console.log('Session will expire at:', expirationDate.toLocaleString());
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Login failed' 
+      };
     }
-
-    const newToken = createMockToken(foundUser.id);
-    setUser(foundUser);
-    setToken(newToken);
-    localStorage.setItem('auth_token', newToken);
-
-    return { success: true };
   };
 
   const register = async (
@@ -81,63 +147,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     name: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if user already exists
-    if (users.find((u) => u.email === email)) {
-      return { success: false, error: 'Email already registered' };
+    try {
+      const response = await authApi.register(email, password, name);
+      
+      setUser({
+        ...response.user,
+        password: '', // Don't store password
+        createdAt: new Date(response.user.createdAt),
+      });
+      setToken(response.token);
+      storeToken(response.token);
+      setSessionExpired(false);
+
+      const expirationDate = getTokenExpirationDate(response.token);
+      if (expirationDate) {
+        console.log('Session will expire at:', expirationDate.toLocaleString());
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Registration failed' 
+      };
     }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return { success: false, error: 'Invalid email format' };
-    }
-
-    // Validate password
-    if (!password || password.length < 6) {
-      return { success: false, error: 'Password must be at least 6 characters' };
-    }
-
-    // Create new user
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      password,
-      name,
-      createdAt: new Date(),
-    };
-
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-
-    // Auto login after registration
-    const newToken = createMockToken(newUser.id);
-    setUser(newUser);
-    setToken(newToken);
-    localStorage.setItem('auth_token', newToken);
-
-    return { success: true };
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('auth_token');
+  const logout = async () => {
+    try {
+      if (token) {
+        await authApi.logout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setToken(null);
+      removeToken();
+      setSessionExpired(false);
+      
+      if (sessionCheckInterval.current) {
+        clearInterval(sessionCheckInterval.current);
+        sessionCheckInterval.current = null;
+      }
+    }
   };
 
-  const updateProfile = (name: string, profilePicture?: string) => {
+  const updateProfile = async (name: string, profilePicture?: string) => {
     if (!user) return;
 
-    const updatedUser = { ...user, name, profilePicture };
-    setUser(updatedUser);
-
-    // Update user in localStorage
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex((u) => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = updatedUser;
-      localStorage.setItem('users', JSON.stringify(users));
+    try {
+      const updatedUser = await authApi.updateProfile(name, profilePicture);
+      setUser({
+        ...updatedUser,
+        password: '',
+        createdAt: new Date(updatedUser.createdAt),
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
     }
   };
 
@@ -148,6 +215,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, token, login, register, logout, updateProfile }}>
       {children}
+      {sessionExpired && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-5">
+          <p className="font-semibold">Session Expired</p>
+          <p className="text-sm">Please log in again to continue.</p>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }
