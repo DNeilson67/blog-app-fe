@@ -8,6 +8,7 @@ interface BlogContextType {
   posts: Post[];
   comments: Comment[];
   isLoading: boolean;
+  isLoadingComments: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => Promise<void>;
   updatePost: (id: string, post: Partial<Post>) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
@@ -18,6 +19,7 @@ interface BlogContextType {
   getCommentsByPostId: (postId: string) => Comment[];
   refreshPosts: () => Promise<void>;
   refreshComments: (postId: string) => Promise<void>;
+  fetchPostById: (id: string) => Promise<Post | null>;
 }
 
 const BlogContext = createContext<BlogContextType | undefined>(undefined);
@@ -26,6 +28,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   // Fetch posts from API
   const refreshPosts = async () => {
@@ -40,6 +43,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         category: post.category,
         authorId: post.author_id,
         authorName: post.author_name,
+        authorProfilePicture: post.author_profile_picture,
         createdAt: new Date(post.created_at),
         updatedAt: new Date(post.updated_at),
       }));
@@ -50,6 +54,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch comments for a specific post
   const refreshComments = async (postId: string) => {
+    setIsLoadingComments(true);
     const response = await apiClient.get<any[]>(`/posts/${postId}/comments`);
     if (response.data) {
       const commentsWithDates = response.data.map((comment: any) => ({
@@ -58,6 +63,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         postId: comment.post_id,
         authorId: comment.author_id,
         authorName: comment.author_name,
+        authorProfilePicture: comment.author_profile_picture,
         createdAt: new Date(comment.created_at),
         updatedAt: new Date(comment.updated_at),
       }));
@@ -68,6 +74,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         return [...filtered, ...commentsWithDates];
       });
     }
+    setIsLoadingComments(false);
   };
 
   // Initialize data from API
@@ -155,6 +162,33 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchPostById = async (id: string): Promise<Post | null> => {
+    const response = await apiClient.get<any>(`/posts/${id}`);
+    if (response.data) {
+      const postWithDate: Post = {
+        id: response.data.id,
+        title: response.data.title,
+        content: response.data.content,
+        excerpt: response.data.excerpt,
+        category: response.data.category,
+        authorId: response.data.author_id,
+        authorName: response.data.author_name,
+        authorProfilePicture: response.data.author_profile_picture,
+        createdAt: new Date(response.data.created_at),
+        updatedAt: new Date(response.data.updated_at),
+      };
+      
+      // Update posts array with the fetched post
+      setPosts((prev) => {
+        const filtered = prev.filter((p) => p.id !== id);
+        return [...filtered, postWithDate];
+      });
+      
+      return postWithDate;
+    }
+    return null;
+  };
+
   const getPostById = (id: string) => {
     return posts.find((post) => post.id === id);
   };
@@ -169,6 +203,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         posts,
         comments,
         isLoading,
+        isLoadingComments,
         createPost,
         updatePost,
         deletePost,
@@ -179,6 +214,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         getCommentsByPostId,
         refreshPosts,
         refreshComments,
+        fetchPostById,
       }}
     >
       {children}

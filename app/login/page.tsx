@@ -94,12 +94,6 @@ export default function LoginPage() {
                 Register here
               </Link>
             </div>
-
-            <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
-              <p className="text-xs text-gray-600 font-medium mb-2">Demo Credentials:</p>
-              <p className="text-xs text-gray-500">Email: john@example.com</p>
-              <p className="text-xs text-gray-500">Password: password123</p>
-            </div>
           </form>
         </CardContent>
       </Card>

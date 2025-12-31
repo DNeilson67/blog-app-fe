@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Calendar, User, Edit, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 function formatDate(date: Date | string) {
   try {
@@ -43,24 +45,51 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const resolvedParams = use(params);
   const router = useRouter();
   const { user } = useAuth();
-  const { getPostById, deletePost, getCommentsByPostId, createComment, updateComment, deleteComment } = useBlog();
+  const { getPostById, deletePost, getCommentsByPostId, createComment, updateComment, deleteComment, refreshComments, isLoadingComments, fetchPostById } = useBlog();
   const [commentContent, setCommentContent] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
-  const [error, setError] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
+  const [postNotFound, setPostNotFound] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
 
   const post = getPostById(resolvedParams.id);
   const comments = getCommentsByPostId(resolvedParams.id);
 
-  if (!post) {
+  // Fetch post and comments when component mounts
+  useEffect(() => {
+    const loadPost = async () => {
+      setIsLoadingPost(true);
+      const loadedPost = await fetchPostById(resolvedParams.id);
+      if (!loadedPost) {
+        setPostNotFound(true);
+      }
+      setIsLoadingPost(false);
+    };
+    loadPost();
+    refreshComments(resolvedParams.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedParams.id]);
+
+  if (isLoadingPost) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Post not found</h1>
-        <Link href="/">
-          <Button>Go back home</Button>
-        </Link>
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingDots />
+      </div>
+    );
+  }
+
+  if (postNotFound || !post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Post not found</h1>
+          <Link href="/">
+            <Button>Go back home</Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -72,27 +101,26 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     router.push('/');
   };
 
-  const handleAddComment = () => {
-    setError('');
-
+  const handleAddComment = async () => {
     if (!user) {
-      setError('You must be logged in to comment');
+      toast.error('You must be logged in to comment');
       return;
     }
 
     if (!commentContent.trim()) {
-      setError('Comment content cannot be empty');
+      toast.error('Comment content cannot be empty');
       return;
     }
 
-    createComment({
+    setIsSubmittingComment(true);
+    await createComment({
       content: commentContent,
       postId: post.id,
-      authorId: user.id,
-      authorName: user.name,
     });
 
     setCommentContent('');
+    setIsSubmittingComment(false);
+    toast.success('Comment added successfully');
   };
 
   const handleEditComment = (commentId: string) => {
@@ -105,14 +133,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleSaveComment = () => {
     if (!editingCommentContent.trim()) {
-      setError('Comment content cannot be empty');
+      toast.error('Comment content cannot be empty');
       return;
     }
 
     updateComment(editingCommentId!, editingCommentContent);
     setEditingCommentId(null);
     setEditingCommentContent('');
-    setError('');
+    toast.success('Comment updated successfully');
   };
 
   const handleDeleteComment = () => {
@@ -148,7 +176,10 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         {/* Meta Information */}
         <div className="flex items-center gap-6 text-gray-600 mb-6">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4" />
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={post.authorProfilePicture || undefined} />
+              <AvatarFallback>{post.authorName.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
             <span className="text-sm">{post.authorName}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -193,20 +224,21 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         {/* Add Comment Form */}
         {user ? (
           <div className="mb-8">
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
             <Textarea
               placeholder="Write a comment..."
               value={commentContent}
               onChange={(e) => setCommentContent(e.target.value)}
               className="mb-3"
               rows={3}
+              disabled={isSubmittingComment}
             />
-            <Button onClick={handleAddComment} className="cursor-pointer">Add Comment</Button>
+            <Button 
+              onClick={handleAddComment} 
+              className="cursor-pointer" 
+              disabled={isSubmittingComment}
+            >
+              {isSubmittingComment ? <LoadingDots /> : 'Add Comment'}
+            </Button>
           </div>
         ) : (
           <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -223,18 +255,23 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         <Separator className="mb-6" />
 
         {/* Comments List */}
-        {comments.length > 0 ? (
+        {isLoadingComments ? (
+          <div className="flex justify-center items-center py-12">
+            <LoadingDots />
+          </div>
+        ) : comments.length > 0 ? (
           <div className="space-y-6">
             {comments.map((comment) => (
               <Card key={comment.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={comment.authorProfilePicture || undefined} />
+                        <AvatarFallback>
                           {comment.authorName.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <p className="font-medium text-gray-900">{comment.authorName}</p>
                         <p className="text-xs text-gray-500">
@@ -284,7 +321,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                           onClick={() => {
                             setEditingCommentId(null);
                             setEditingCommentContent('');
-                            setError('');
                           }}
                         >
                           Cancel

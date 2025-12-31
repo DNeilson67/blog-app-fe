@@ -15,6 +15,7 @@ export interface Post {
   category?: string;
   authorId: string;
   authorName: string;
+  authorProfilePicture?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export interface Comment {
   postId: string;
   authorId: string;
   authorName: string;
+  authorProfilePicture?: string;
   createdAt: Date;
   updatedAt: Date;
 }

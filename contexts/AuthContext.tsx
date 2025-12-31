@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Invalid email or password' };
     }
 
-    const response = await apiClient.post<{ access_token: string; token_type: string; user: User }>(
+    const response = await apiClient.post<{ access_token: string; token_type: string; user: any }>(
       '/auth/login',
       { email, password }
     );
@@ -51,8 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { access_token, user: userData } = response.data;
     const userWithDate = {
-      ...userData,
-      createdAt: new Date(userData.createdAt),
+      id: userData.id,
+      email: userData.email,
+      password: userData.password || '',
+      name: userData.name,
+      profilePicture: userData.profile_picture || userData.profilePicture || undefined,
+      createdAt: new Date(userData.created_at || userData.createdAt),
     };
 
     setUser(userWithDate);
@@ -68,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     name: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const response = await apiClient.post<{ access_token: string; token_type: string; user: User }>(
+    const response = await apiClient.post<{ access_token: string; token_type: string; user: any }>(
       '/auth/register',
       { email, password, name }
     );
@@ -79,8 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { access_token, user: userData } = response.data;
     const userWithDate = {
-      ...userData,
-      createdAt: new Date(userData.createdAt),
+      id: userData.id,
+      email: userData.email,
+      password: userData.password || '',
+      name: userData.name,
+      profilePicture: userData.profile_picture || userData.profilePicture || undefined,
+      createdAt: new Date(userData.created_at || userData.createdAt),
     };
 
     setUser(userWithDate);
@@ -102,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (name: string, profilePicture?: string) => {
     if (!user) return;
 
-    const response = await apiClient.put<User>(
+    const response = await apiClient.put<any>(
       '/users/me',
       { name, profile_picture: profilePicture },
       true
@@ -110,8 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (response.data) {
       const updatedUser = {
-        ...response.data,
-        createdAt: new Date(response.data.createdAt),
+        ...user,
+        name: response.data.name,
+        profilePicture: response.data.profile_picture || response.data.profilePicture || undefined,
+        createdAt: user.createdAt, // Preserve existing createdAt
       };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
