@@ -22,7 +22,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { PenSquare, Home, User, LogIn, LogOut, Menu, Settings, BookOpen } from 'lucide-react';
+import { PenSquare, User, LogOut, Menu, BookOpen, ChevronDown } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -52,50 +52,23 @@ export default function Navbar() {
           {/* Logo */}
           <Link 
             href="/" 
-            className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
+            className="flex items-center gap-2 text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors cursor-pointer"
           >
-            <BookOpen className="h-7 w-7" />
-            <span className="hidden sm:inline">BlogApp</span>
+            <BookOpen className="h-6 w-6" />
+            <span>BlogApp</span>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center gap-1">
-            <Link href="/">
-              <Button
-                variant={isActive('/') ? 'default' : 'ghost'}
-                size="sm"
-                className="gap-2"
-              >
-                <Home className="h-4 w-4" />
-                Home
-              </Button>
-            </Link>
-
-            {user && (
-              <Link href="/create">
-                <Button
-                  variant={isActive('/create') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <PenSquare className="h-4 w-4" />
-                  Create Post
-                </Button>
-              </Link>
-            )}
-          </div>
-
           {/* Desktop Auth Section */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 px-3">
-                    <Avatar className="h-8 w-8">
+                  <Button variant="ghost" className="gap-2 px-3 cursor-pointer">
+                    <Avatar className="h-7 w-7">
                       <AvatarImage src={user.profilePicture} alt={user.name} />
                       <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
+                    <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
                       {user.name}
                     </span>
                   </Button>
@@ -130,13 +103,12 @@ export default function Navbar() {
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <LogIn className="h-4 w-4" />
-                    Login
+                  <Button variant="ghost" size="sm">
+                    Sign in
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm">
                     Register
                   </Button>
                 </Link>
@@ -145,10 +117,10 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="cursor-pointer">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -176,24 +148,13 @@ export default function Navbar() {
                     </div>
                   )}
 
-                  <Link href="/" onClick={() => setMobileMenuOpen(false)}>
-                    <Button
-                      variant={isActive('/') ? 'default' : 'ghost'}
-                      className="w-full justify-start gap-2"
-                    >
-                      <Home className="h-4 w-4" />
-                      Home
-                    </Button>
-                  </Link>
-
                   {user ? (
                     <>
                       <Link href="/create" onClick={() => setMobileMenuOpen(false)}>
                         <Button
                           variant={isActive('/create') ? 'default' : 'ghost'}
-                          className="w-full justify-start gap-2"
+                          className="w-full justify-start"
                         >
-                          <PenSquare className="h-4 w-4" />
                           Create Post
                         </Button>
                       </Link>
@@ -201,9 +162,8 @@ export default function Navbar() {
                       <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
                         <Button
                           variant={isActive('/profile') ? 'default' : 'ghost'}
-                          className="w-full justify-start gap-2"
+                          className="w-full justify-start"
                         >
-                          <User className="h-4 w-4" />
                           My Profile
                         </Button>
                       </Link>
@@ -213,23 +173,22 @@ export default function Navbar() {
                       <Button
                         variant="ghost"
                         onClick={handleLogout}
-                        className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        <LogOut className="h-4 w-4" />
+                        <LogOut className="mr-2 h-4 w-4" />
                         Logout
                       </Button>
                     </>
                   ) : (
                     <>
                       <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start gap-2">
-                          <LogIn className="h-4 w-4" />
-                          Login
+                        <Button variant="ghost" className="w-full justify-start">
+                          Sign in
                         </Button>
                       </Link>
 
                       <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full justify-start gap-2">
+                        <Button className="w-full justify-start">
                           Register
                         </Button>
                       </Link>

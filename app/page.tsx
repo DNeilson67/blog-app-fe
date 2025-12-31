@@ -3,11 +3,12 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useBlog } from '@/contexts/BlogContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Calendar, User, ChevronLeft, ChevronRight, PenSquare } from 'lucide-react';
 
 const POSTS_PER_PAGE = 6;
 
@@ -21,6 +22,7 @@ function formatDate(date: Date) {
 
 export default function HomePage() {
   const { posts } = useBlog();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -61,9 +63,19 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to BlogApp</h1>
-        <p className="text-lg text-gray-600">Discover stories, ideas, and expertise from writers</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to BlogApp</h1>
+          <p className="text-lg text-gray-600">Discover stories, ideas, and expertise from writers</p>
+        </div>
+        {user && (
+          <Link href="/create">
+            <Button size="lg" className="gap-2">
+              <PenSquare className="h-5 w-5" />
+              Create Post
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -90,7 +102,7 @@ export default function HomePage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {currentPosts.map((post) => (
-              <Card key={post.id} className="flex flex-col hover:shadow-lg transition-shadow">
+              <Card key={post.id} className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader>
                   <div className="flex items-center justify-between mb-2">
                     {post.category && (
@@ -99,7 +111,7 @@ export default function HomePage() {
                       </Badge>
                     )}
                   </div>
-                  <CardTitle className="text-xl line-clamp-2 hover:text-gray-700">
+                  <CardTitle className="text-xl line-clamp-2 hover:text-gray-700 cursor-pointer">
                     <Link href={`/post/${post.id}`}>{post.title}</Link>
                   </CardTitle>
                   <CardDescription className="line-clamp-2">{post.excerpt}</CardDescription>
@@ -116,7 +128,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <Link href={`/post/${post.id}`}>
-                    <Button variant="link" className="mt-4 px-0">
+                    <Button variant="link" className="mt-4 px-0 cursor-pointer">
                       Read more →
                     </Button>
                   </Link>

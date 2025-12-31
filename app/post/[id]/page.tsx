@@ -119,7 +119,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Back Button */}
       <Link href="/">
-        <Button variant="ghost" className="mb-6">
+        <Button variant="ghost" className="mb-6 cursor-pointer">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to posts
         </Button>
@@ -198,7 +198,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               className="mb-3"
               rows={3}
             />
-            <Button onClick={handleAddComment}>Add Comment</Button>
+            <Button onClick={handleAddComment} className="cursor-pointer">Add Comment</Button>
           </div>
         ) : (
           <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">

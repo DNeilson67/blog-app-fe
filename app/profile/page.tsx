@@ -199,7 +199,7 @@ export default function ProfilePage() {
               {/* Edit Button */}
               {isEditing ? (
                 <div className="flex gap-2">
-                  <Button onClick={handleUpdateProfile} className="flex-1">
+                  <Button onClick={handleUpdateProfile} className="flex-1 cursor-pointer">
                     Save Changes
                   </Button>
                   <Button
@@ -215,7 +215,7 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={() => setIsEditing(true)} className="w-full">
+                <Button onClick={() => setIsEditing(true)} className="w-full cursor-pointer">
                   Edit Profile
                 </Button>
               )}

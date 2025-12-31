@@ -14,7 +14,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, ArrowLeft, Eye } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, ArrowLeft, Eye, Calendar, User, X } from 'lucide-react';
 
 export default function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -86,22 +88,19 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-8 max-w-3xl">
       {/* Back Button */}
       <Link href={`/post/${post.id}`}>
-        <Button variant="ghost" className="mb-6">
+        <Button variant="ghost" className="mb-6 cursor-pointer">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to post
         </Button>
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form Section */}
-        <div>
-          <Card>
+      <Card>
             <CardHeader>
-              <CardTitle>Edit Post</CardTitle>
-              <CardDescription>Update your post content</CardDescription>
+              <CardTitle className="text-center">Edit Post</CardTitle>
+              <CardDescription className="text-center">Update your post content</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -150,52 +149,88 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
                 </div>
 
                 <div className="flex gap-3">
-                  <Button type="submit" className="flex-1">
+                  <Button type="submit" className="flex-1 cursor-pointer">
                     Update Post
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="lg:hidden"
+                    onClick={() => setShowPreview(true)}
+                    className="cursor-pointer"
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    {showPreview ? 'Hide' : 'Show'} Preview
+                    Preview
                   </Button>
                 </div>
               </form>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Preview Section */}
-        <div className={`${showPreview ? 'block' : 'hidden'} lg:block`}>
-          <Card className="sticky top-20">
-            <CardHeader>
-              <CardTitle>Preview</CardTitle>
-              <CardDescription>How your post will look</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}
-                {category && (
-                  <span className="inline-block px-3 py-1 text-xs font-medium bg-gray-200 text-gray-700 rounded-full">
-                    {category}
-                  </span>
-                )}
-                <Separator />
-                {content ? (
-                  <div className="prose max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-gray-400 italic">Your content preview will appear here...</p>
-                )}
+      {/* Full Preview Sheet */}
+      <Sheet open={showPreview} onOpenChange={setShowPreview}>
+        <SheetContent side="bottom" className="h-[100vh] w-full p-0 overflow-y-auto">
+          <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
+            <div className="flex items-start justify-between">
+              <SheetHeader>
+                <SheetTitle>Post Preview</SheetTitle>
+                <SheetDescription>
+                  This is how your post will appear to readers
+                </SheetDescription>
+              </SheetHeader>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowPreview(false)}
+                className="cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="container mx-auto max-w-4xl p-8">
+            {/* Category Badge */}
+            {category && (
+              <Badge variant="secondary" className="mb-4">
+                {category}
+              </Badge>
+            )}
+
+            {/* Title */}
+            {title ? (
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
+            ) : (
+              <h1 className="text-4xl font-bold text-gray-400 mb-4 italic">Your Title Here</h1>
+            )}
+
+            {/* Meta Information */}
+            <div className="flex items-center gap-6 text-gray-600 mb-6">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="text-sm">{user.name}</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span className="text-sm">{post.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+            </div>
+
+            <Separator className="mb-6" />
+
+            {/* Markdown Content */}
+            {content ? (
+              <div className="prose max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-gray-400 italic text-center py-12">
+                Start writing your content to see the preview...
+              </p>
+            )}
+          </div>
+
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
