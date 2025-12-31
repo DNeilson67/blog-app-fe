@@ -180,11 +180,7 @@ export default function ProfilePage() {
                 <p className="text-gray-600">{user.email}</p>
               </div>
 
-              {/* Member Since */}
-              <div className="space-y-2">
-                <Label>Member Since</Label>
-                <p className="text-gray-600">{formatDate(user.created_at)}</p>
-              </div>
+              <Separator />
 
               {/* Edit Button */}
               {isEditing ? (
@@ -198,7 +194,6 @@ export default function ProfilePage() {
                       setIsEditing(false);
                       setName(user.name);
                       setProfilePicture(user.profilePicture || '');
-                      setError('');
                     }}
                   >
                     Cancel
