@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api';
 interface BlogContextType {
   posts: Post[];
   comments: Comment[];
+  isLoading: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => Promise<void>;
   updatePost: (id: string, post: Partial<Post>) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
@@ -24,28 +25,41 @@ const BlogContext = createContext<BlogContextType | undefined>(undefined);
 export function BlogProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch posts from API
   const refreshPosts = async () => {
-    const response = await apiClient.get<Post[]>('/posts');
+    setIsLoading(true);
+    const response = await apiClient.get<any[]>('/posts');
     if (response.data) {
-      const postsWithDates = response.data.map((post) => ({
-        ...post,
-        createdAt: new Date(post.createdAt),
-        updatedAt: new Date(post.updatedAt),
+      const postsWithDates = response.data.map((post: any) => ({
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        excerpt: post.excerpt,
+        category: post.category,
+        authorId: post.author_id,
+        authorName: post.author_name,
+        createdAt: new Date(post.created_at),
+        updatedAt: new Date(post.updated_at),
       }));
       setPosts(postsWithDates);
     }
+    setIsLoading(false);
   };
 
   // Fetch comments for a specific post
   const refreshComments = async (postId: string) => {
-    const response = await apiClient.get<Comment[]>(`/posts/${postId}/comments`);
+    const response = await apiClient.get<any[]>(`/posts/${postId}/comments`);
     if (response.data) {
-      const commentsWithDates = response.data.map((comment) => ({
-        ...comment,
-        createdAt: new Date(comment.createdAt),
-        updatedAt: new Date(comment.updatedAt),
+      const commentsWithDates = response.data.map((comment: any) => ({
+        id: comment.id,
+        content: comment.content,
+        postId: comment.post_id,
+        authorId: comment.author_id,
+        authorName: comment.author_name,
+        createdAt: new Date(comment.created_at),
+        updatedAt: new Date(comment.updated_at),
       }));
       
       // Update comments for this post
@@ -154,6 +168,7 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
       value={{
         posts,
         comments,
+        isLoading,
         createPost,
         updatePost,
         deletePost,

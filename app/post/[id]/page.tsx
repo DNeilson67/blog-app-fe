@@ -23,12 +23,20 @@ import {
 } from '@/components/ui/dialog';
 import { Calendar, User, Edit, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date);
+function formatDate(date: Date | string) {
+  try {
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid date';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(dateObj);
+  } catch (error) {
+    return 'Invalid date';
+  }
 }
 
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -145,7 +153,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            <span className="text-sm">{formatDate(new Date(post.createdAt))}</span>
+            <span className="text-sm">{formatDate(post.createdAt)}</span>
           </div>
         </div>
 
@@ -230,7 +238,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       <div>
                         <p className="font-medium text-gray-900">{comment.authorName}</p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(new Date(comment.createdAt))}
+                          {formatDate(comment.createdAt)}
                         </p>
                       </div>
                     </div>

@@ -65,8 +65,6 @@ export default function CreatePostPage() {
       content: content.trim(),
       excerpt,
       category: category.trim() || undefined,
-      authorId: user.id,
-      authorName: user.name,
     });
 
     toast.success('Post created successfully!');

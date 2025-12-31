@@ -24,12 +24,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
+function formatDate(date: Date | string) {
+  try {
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid date';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(dateObj);
+  } catch (error) {
+    return 'Invalid date';
+  }
 }
 
 export default function ProfilePage() {
@@ -126,7 +134,7 @@ export default function ProfilePage() {
               {/* Avatar */}
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-32 w-32">
-                  <AvatarImage src={profilePicture} alt={name} />
+                  <AvatarImage src={profilePicture || undefined} alt={name} />
                   <AvatarFallback className="text-2xl">{getInitials(name)}</AvatarFallback>
                 </Avatar>
 
@@ -175,7 +183,7 @@ export default function ProfilePage() {
               {/* Member Since */}
               <div className="space-y-2">
                 <Label>Member Since</Label>
-                <p className="text-gray-600">{formatDate(new Date(user.createdAt))}</p>
+                <p className="text-gray-600">{formatDate(user.created_at)}</p>
               </div>
 
               {/* Edit Button */}
@@ -229,7 +237,7 @@ export default function ProfilePage() {
                             {post.category && <Badge variant="secondary">{post.category}</Badge>}
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {formatDate(new Date(post.createdAt))}
+                              {formatDate(post.createdAt)}
                             </div>
                           </div>
                         </div>
