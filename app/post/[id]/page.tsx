@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
@@ -35,7 +35,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const resolvedParams = use(params);
   const router = useRouter();
   const { user } = useAuth();
-  const { getPostById, deletePost, getCommentsByPostId, createComment, updateComment, deleteComment, refreshComments } = useBlog();
+  const { getPostById, deletePost, getCommentsByPostId, createComment, updateComment, deleteComment } = useBlog();
   const [commentContent, setCommentContent] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
@@ -45,13 +45,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
   const post = getPostById(resolvedParams.id);
   const comments = getCommentsByPostId(resolvedParams.id);
-
-  // Load comments when post is viewed
-  useEffect(() => {
-    if (post) {
-      refreshComments(post.id);
-    }
-  }, [post?.id]);
 
   if (!post) {
     return (
@@ -66,16 +59,12 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
   const isAuthor = user?.id === post.authorId;
 
-  const handleDeletePost = async () => {
-    try {
-      await deletePost(post.id);
-      router.push('/');
-    } catch (err) {
-      setError('Failed to delete post');
-    }
+  const handleDeletePost = () => {
+    deletePost(post.id);
+    router.push('/');
   };
 
-  const handleAddComment = async () => {
+  const handleAddComment = () => {
     setError('');
 
     if (!user) {
@@ -88,15 +77,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    try {
-      await createComment({
-        content: commentContent,
-        postId: post.id,
-      });
-      setCommentContent('');
-    } catch (err) {
-      setError('Failed to add comment');
-    }
+    createComment({
+      content: commentContent,
+      postId: post.id,
+      authorId: user.id,
+      authorName: user.name,
+    });
+
+    setCommentContent('');
   };
 
   const handleEditComment = (commentId: string) => {
@@ -107,31 +95,23 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const handleSaveComment = async () => {
+  const handleSaveComment = () => {
     if (!editingCommentContent.trim()) {
       setError('Comment content cannot be empty');
       return;
     }
 
-    try {
-      await updateComment(editingCommentId!, editingCommentContent);
-      setEditingCommentId(null);
-      setEditingCommentContent('');
-      setError('');
-    } catch (err) {
-      setError('Failed to update comment');
-    }
+    updateComment(editingCommentId!, editingCommentContent);
+    setEditingCommentId(null);
+    setEditingCommentContent('');
+    setError('');
   };
 
-  const handleDeleteComment = async () => {
+  const handleDeleteComment = () => {
     if (deleteCommentId) {
-      try {
-        await deleteComment(deleteCommentId);
-        setDeleteCommentId(null);
-        setDeleteDialogOpen(false);
-      } catch (err) {
-        setError('Failed to delete comment');
-      }
+      deleteComment(deleteCommentId);
+      setDeleteCommentId(null);
+      setDeleteDialogOpen(false);
     }
   };
 

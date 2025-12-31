@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Post, Comment } from '@/lib/types';
-import { postsApi, commentsApi } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 interface BlogContextType {
   posts: Post[];
@@ -27,36 +27,32 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch posts from API
   const refreshPosts = async () => {
-    try {
-      const postsData = await postsApi.getAll();
-      const formattedPosts = postsData.map((post: any) => ({
+    const response = await apiClient.get<Post[]>('/posts');
+    if (response.data) {
+      const postsWithDates = response.data.map((post) => ({
         ...post,
         createdAt: new Date(post.createdAt),
         updatedAt: new Date(post.updatedAt),
       }));
-      setPosts(formattedPosts);
-    } catch (error) {
-      console.error('Failed to fetch posts:', error);
+      setPosts(postsWithDates);
     }
   };
 
   // Fetch comments for a specific post
   const refreshComments = async (postId: string) => {
-    try {
-      const commentsData = await commentsApi.getByPostId(postId);
-      const formattedComments = commentsData.map((comment: any) => ({
+    const response = await apiClient.get<Comment[]>(`/posts/${postId}/comments`);
+    if (response.data) {
+      const commentsWithDates = response.data.map((comment) => ({
         ...comment,
         createdAt: new Date(comment.createdAt),
         updatedAt: new Date(comment.updatedAt),
       }));
       
-      // Update comments state, keeping comments from other posts
-      setComments(prev => [
-        ...prev.filter(c => c.postId !== postId),
-        ...formattedComments
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch comments:', error);
+      // Update comments for this post
+      setComments((prev) => {
+        const filtered = prev.filter((c) => c.postId !== postId);
+        return [...filtered, ...commentsWithDates];
+      });
     }
   };
 
@@ -66,101 +62,82 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
-    try {
-      const newPost = await postsApi.create({
+    const response = await apiClient.post<Post>(
+      '/posts',
+      {
         title: postData.title,
         content: postData.content,
         excerpt: postData.excerpt,
         category: postData.category,
-      });
+      },
+      true
+    );
 
-      const formattedPost: Post = {
-        ...newPost,
-        createdAt: new Date(newPost.createdAt),
-        updatedAt: new Date(newPost.updatedAt),
-      };
-
-      setPosts(prev => [formattedPost, ...prev]);
-    } catch (error) {
-      console.error('Failed to create post:', error);
-      throw error;
+    if (response.data) {
+      await refreshPosts();
     }
   };
 
   const updatePost = async (id: string, postData: Partial<Post>) => {
-    try {
-      const updatedPost = await postsApi.update(id, {
+    const response = await apiClient.put<Post>(
+      `/posts/${id}`,
+      {
         title: postData.title,
         content: postData.content,
         excerpt: postData.excerpt,
         category: postData.category,
-      });
+      },
+      true
+    );
 
-      const formattedPost: Post = {
-        ...updatedPost,
-        createdAt: new Date(updatedPost.createdAt),
-        updatedAt: new Date(updatedPost.updatedAt),
-      };
-
-      setPosts(prev => prev.map(post => post.id === id ? formattedPost : post));
-    } catch (error) {
-      console.error('Failed to update post:', error);
-      throw error;
+    if (response.data) {
+      await refreshPosts();
     }
   };
 
   const deletePost = async (id: string) => {
-    try {
-      await postsApi.delete(id);
-      setPosts(prev => prev.filter(post => post.id !== id));
-      setComments(prev => prev.filter(comment => comment.postId !== id));
-    } catch (error) {
-      console.error('Failed to delete post:', error);
-      throw error;
+    const response = await apiClient.delete(`/posts/${id}`, true);
+    if (!response.error) {
+      await refreshPosts();
+      // Also remove associated comments
+      setComments((prev) => prev.filter((comment) => comment.postId !== id));
     }
   };
 
   const createComment = async (commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
-    try {
-      const newComment = await commentsApi.create(commentData.postId, commentData.content);
+    const response = await apiClient.post<Comment>(
+      `/posts/${commentData.postId}/comments`,
+      { content: commentData.content },
+      true
+    );
 
-      const formattedComment: Comment = {
-        ...newComment,
-        createdAt: new Date(newComment.createdAt),
-        updatedAt: new Date(newComment.updatedAt),
-      };
-
-      setComments(prev => [formattedComment, ...prev]);
-    } catch (error) {
-      console.error('Failed to create comment:', error);
-      throw error;
+    if (response.data) {
+      await refreshComments(commentData.postId);
     }
   };
 
   const updateComment = async (id: string, content: string) => {
-    try {
-      const updatedComment = await commentsApi.update(id, content);
+    const comment = comments.find((c) => c.id === id);
+    if (!comment) return;
 
-      const formattedComment: Comment = {
-        ...updatedComment,
-        createdAt: new Date(updatedComment.createdAt),
-        updatedAt: new Date(updatedComment.updatedAt),
-      };
+    const response = await apiClient.put<Comment>(
+      `/comments/${id}`,
+      { content },
+      true
+    );
 
-      setComments(prev => prev.map(comment => comment.id === id ? formattedComment : comment));
-    } catch (error) {
-      console.error('Failed to update comment:', error);
-      throw error;
+    if (response.data) {
+      await refreshComments(comment.postId);
     }
   };
 
   const deleteComment = async (id: string) => {
-    try {
-      await commentsApi.delete(id);
-      setComments(prev => prev.filter(comment => comment.id !== id));
-    } catch (error) {
-      console.error('Failed to delete comment:', error);
-      throw error;
+    const comment = comments.find((c) => c.id === id);
+    if (!comment) return;
+
+    const response = await apiClient.delete(`/comments/${id}`, true);
+    if (!response.error) {
+      setComments((prev) => prev.filter((c) => c.id !== id));
     }
   };
 

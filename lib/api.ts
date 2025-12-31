@@ -1,154 +1,110 @@
-import { getStoredToken, removeToken, isTokenExpired } from './tokenUtils';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+}
 
-// Event emitter for session expiration
-let sessionExpiredCallback: (() => void) | null = null;
-
-export const setSessionExpiredCallback = (callback: () => void) => {
-  sessionExpiredCallback = callback;
-};
-
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return getStoredToken();
-};
-
-// Helper function to make authenticated requests
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  const token = getAuthToken();
+class ApiClient {
+  private baseUrl: string;
   
-  // Check if token is expired before making request
-  if (token && isTokenExpired(token)) {
-    removeToken();
-    if (sessionExpiredCallback) {
-      sessionExpiredCallback();
-    }
-    throw new Error('Session expired. Please login again.');
+  constructor(baseUrl: string = API_BASE_URL) {
+    this.baseUrl = baseUrl;
   }
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  private getHeaders(includeAuth: boolean = false): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    // Handle 401 Unauthorized (token expired or invalid)
-    if (response.status === 401) {
-      removeToken();
-      if (sessionExpiredCallback) {
-        sessionExpiredCallback();
+    if (includeAuth) {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
-      const error = await response.json().catch(() => ({ error: 'Session expired' }));
-      throw new Error(error.error || 'Session expired. Please login again.');
     }
 
-    const error = await response.json().catch(() => ({ error: 'An error occurred' }));
-    throw new Error(error.error || 'Request failed');
+    return headers;
   }
 
-  return response.json();
-};
+  async get<T>(endpoint: string, requireAuth: boolean = false): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers: this.getHeaders(requireAuth),
+      });
 
-// Auth API
-export const authApi = {
-  register: async (email: string, password: string, name: string) => {
-    return fetchWithAuth('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    });
-  },
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { error: errorData.detail || 'Request failed' };
+      }
 
-  login: async (email: string, password: string) => {
-    return fetchWithAuth('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  },
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  }
 
-  logout: async () => {
-    return fetchWithAuth('/auth/logout', {
-      method: 'POST',
-    });
-  },
+  async post<T>(endpoint: string, body: any, requireAuth: boolean = false): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: this.getHeaders(requireAuth),
+        body: JSON.stringify(body),
+      });
 
-  getProfile: async () => {
-    return fetchWithAuth('/auth/me');
-  },
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { error: errorData.detail || 'Request failed' };
+      }
 
-  updateProfile: async (name: string, profilePicture?: string) => {
-    return fetchWithAuth('/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify({ name, profilePicture }),
-    });
-  },
-};
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  }
 
-// Posts API
-export const postsApi = {
-  getAll: async () => {
-    return fetchWithAuth('/posts');
-  },
+  async put<T>(endpoint: string, body: any, requireAuth: boolean = false): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'PUT',
+        headers: this.getHeaders(requireAuth),
+        body: JSON.stringify(body),
+      });
 
-  getById: async (id: string) => {
-    return fetchWithAuth(`/posts/${id}`);
-  },
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { error: errorData.detail || 'Request failed' };
+      }
 
-  create: async (data: { title: string; content: string; excerpt?: string; category?: string }) => {
-    return fetchWithAuth('/posts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  }
 
-  update: async (id: string, data: { title?: string; content?: string; excerpt?: string; category?: string }) => {
-    return fetchWithAuth(`/posts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
+  async delete<T>(endpoint: string, requireAuth: boolean = false): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(requireAuth),
+      });
 
-  delete: async (id: string) => {
-    return fetchWithAuth(`/posts/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { error: errorData.detail || 'Request failed' };
+      }
 
-// Comments API
-export const commentsApi = {
-  getByPostId: async (postId: string) => {
-    return fetchWithAuth(`/posts/${postId}/comments`);
-  },
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  }
+}
 
-  create: async (postId: string, content: string) => {
-    return fetchWithAuth(`/posts/${postId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    });
-  },
-
-  update: async (id: string, content: string) => {
-    return fetchWithAuth(`/comments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ content }),
-    });
-  },
-
-  delete: async (id: string) => {
-    return fetchWithAuth(`/comments/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
+export const apiClient = new ApiClient();
+export default apiClient;
