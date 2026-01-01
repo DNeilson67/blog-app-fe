@@ -1,8 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { Post, Comment } from '@/lib/types';
-import { apiClient } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 interface BlogContextType {
   posts: Post[];
@@ -33,8 +40,8 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   // Fetch posts from API
   const refreshPosts = async () => {
     setIsLoading(true);
-    const response = await apiClient.get<any[]>('/posts');
-    if (response.data) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/posts`);
       const postsWithDates = response.data.map((post: any) => ({
         id: post.id,
         title: post.title,
@@ -48,6 +55,8 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         updatedAt: new Date(post.updated_at),
       }));
       setPosts(postsWithDates);
+    } catch (error) {
+      console.error('Failed to fetch posts:', error);
     }
     setIsLoading(false);
   };
@@ -55,8 +64,8 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   // Fetch comments for a specific post
   const refreshComments = async (postId: string) => {
     setIsLoadingComments(true);
-    const response = await apiClient.get<any[]>(`/posts/${postId}/comments`);
-    if (response.data) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/posts/${postId}/comments`);
       const commentsWithDates = response.data.map((comment: any) => ({
         id: comment.id,
         content: comment.content,
@@ -73,6 +82,8 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
         const filtered = prev.filter((c) => c.postId !== postId);
         return [...filtered, ...commentsWithDates];
       });
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
     }
     setIsLoadingComments(false);
   };
@@ -83,57 +94,67 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
-    const response = await apiClient.post<Post>(
-      '/posts',
-      {
-        title: postData.title,
-        content: postData.content,
-        excerpt: postData.excerpt,
-        category: postData.category,
-      },
-      true
-    );
-
-    if (response.data) {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/posts`,
+        {
+          title: postData.title,
+          content: postData.content,
+          excerpt: postData.excerpt,
+          category: postData.category,
+        },
+        { headers: getAuthHeaders() }
+      );
       await refreshPosts();
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      throw error;
     }
   };
 
   const updatePost = async (id: string, postData: Partial<Post>) => {
-    const response = await apiClient.put<Post>(
-      `/posts/${id}`,
-      {
-        title: postData.title,
-        content: postData.content,
-        excerpt: postData.excerpt,
-        category: postData.category,
-      },
-      true
-    );
-
-    if (response.data) {
+    try {
+      await axios.put(
+        `${API_BASE_URL}/posts/${id}`,
+        {
+          title: postData.title,
+          content: postData.content,
+          excerpt: postData.excerpt,
+          category: postData.category,
+        },
+        { headers: getAuthHeaders() }
+      );
       await refreshPosts();
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      throw error;
     }
   };
 
   const deletePost = async (id: string) => {
-    const response = await apiClient.delete(`/posts/${id}`, true);
-    if (!response.error) {
+    try {
+      await axios.delete(`${API_BASE_URL}/posts/${id}`, {
+        headers: getAuthHeaders()
+      });
       await refreshPosts();
-      // Also remove associated comments
       setComments((prev) => prev.filter((comment) => comment.postId !== id));
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      throw error;
     }
   };
 
   const createComment = async (commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>) => {
-    const response = await apiClient.post<Comment>(
-      `/posts/${commentData.postId}/comments`,
-      { content: commentData.content },
-      true
-    );
-
-    if (response.data) {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/posts/${commentData.postId}/comments`,
+        { content: commentData.content },
+        { headers: getAuthHeaders() }
+      );
       await refreshComments(commentData.postId);
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+      throw error;
     }
   };
 
@@ -141,14 +162,16 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
     const comment = comments.find((c) => c.id === id);
     if (!comment) return;
 
-    const response = await apiClient.put<Comment>(
-      `/comments/${id}`,
-      { content },
-      true
-    );
-
-    if (response.data) {
+    try {
+      await axios.put(
+        `${API_BASE_URL}/comments/${id}`,
+        { content },
+        { headers: getAuthHeaders() }
+      );
       await refreshComments(comment.postId);
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      throw error;
     }
   };
 
@@ -156,15 +179,20 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
     const comment = comments.find((c) => c.id === id);
     if (!comment) return;
 
-    const response = await apiClient.delete(`/comments/${id}`, true);
-    if (!response.error) {
+    try {
+      await axios.delete(`${API_BASE_URL}/comments/${id}`, {
+        headers: getAuthHeaders()
+      });
       setComments((prev) => prev.filter((c) => c.id !== id));
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      throw error;
     }
   };
 
   const fetchPostById = async (id: string): Promise<Post | null> => {
-    const response = await apiClient.get<any>(`/posts/${id}`);
-    if (response.data) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/posts/${id}`);
       const postWithDate: Post = {
         id: response.data.id,
         title: response.data.title,
@@ -185,8 +213,10 @@ export function BlogProvider({ children }: { children: React.ReactNode }) {
       });
       
       return postWithDate;
+    } catch (error) {
+      console.error('Failed to fetch post:', error);
+      return null;
     }
-    return null;
   };
 
   const getPostById = (id: string) => {

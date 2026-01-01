@@ -1,8 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { User, AuthContextType } from '@/lib/types';
-import { apiClient } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -33,38 +35,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find((u) => u.email === email && u.password === password);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password
+      });
 
-    if (!foundUser) {
-      return { success: false, error: 'Invalid email or password' };
+      const { access_token, user: userData } = response.data;
+      const userWithDate = {
+        id: userData.id,
+        email: userData.email,
+        password: userData.password || '',
+        name: userData.name,
+        profilePicture: userData.profile_picture || userData.profilePicture || undefined,
+        createdAt: new Date(userData.created_at || userData.createdAt),
+      };
+
+      setUser(userWithDate);
+      setToken(access_token);
+      localStorage.setItem('auth_token', access_token);
+      localStorage.setItem('user', JSON.stringify(userWithDate));
+
+      return { success: true };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Login failed';
+      return { success: false, error: errorMessage };
     }
-
-    const response = await apiClient.post<{ access_token: string; token_type: string; user: any }>(
-      '/auth/login',
-      { email, password }
-    );
-
-    if (response.error || !response.data) {
-      return { success: false, error: response.error || 'Login failed' };
-    }
-
-    const { access_token, user: userData } = response.data;
-    const userWithDate = {
-      id: userData.id,
-      email: userData.email,
-      password: userData.password || '',
-      name: userData.name,
-      profilePicture: userData.profile_picture || userData.profilePicture || undefined,
-      createdAt: new Date(userData.created_at || userData.createdAt),
-    };
-
-    setUser(userWithDate);
-    setToken(access_token);
-    localStorage.setItem('auth_token', access_token);
-    localStorage.setItem('user', JSON.stringify(userWithDate));
-
-    return { success: true };
   };
 
   const register = async (
@@ -72,35 +68,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     name: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const response = await apiClient.post<{ access_token: string; token_type: string; user: any }>(
-      '/auth/register',
-      { email, password, name }
-    );
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, {
+        email,
+        password,
+        name
+      });
 
-    if (response.error || !response.data) {
-      return { success: false, error: response.error || 'Registration failed' };
+      const { access_token, user: userData } = response.data;
+      const userWithDate = {
+        id: userData.id,
+        email: userData.email,
+        password: userData.password || '',
+        name: userData.name,
+        profilePicture: userData.profile_picture || userData.profilePicture || undefined,
+        createdAt: new Date(userData.created_at || userData.createdAt),
+      };
+
+      setUser(userWithDate);
+      setToken(access_token);
+      localStorage.setItem('auth_token', access_token);
+      localStorage.setItem('user', JSON.stringify(userWithDate));
+
+      return { success: true };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Registration failed';
+      return { success: false, error: errorMessage };
     }
-
-    const { access_token, user: userData } = response.data;
-    const userWithDate = {
-      id: userData.id,
-      email: userData.email,
-      password: userData.password || '',
-      name: userData.name,
-      profilePicture: userData.profile_picture || userData.profilePicture || undefined,
-      createdAt: new Date(userData.created_at || userData.createdAt),
-    };
-
-    setUser(userWithDate);
-    setToken(access_token);
-    localStorage.setItem('auth_token', access_token);
-    localStorage.setItem('user', JSON.stringify(userWithDate));
-
-    return { success: true };
   };
 
   const logout = async () => {
-    await apiClient.post('/auth/logout', {}, true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      // Ignore logout errors
+    }
     setUser(null);
     setToken(null);
     localStorage.removeItem('auth_token');
@@ -110,21 +119,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (name: string, profilePicture?: string) => {
     if (!user) return;
 
-    const response = await apiClient.put<any>(
-      '/users/me',
-      { name, profile_picture: profilePicture },
-      true
-    );
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.put(
+        `${API_BASE_URL}/users/me`,
+        { name, profile_picture: profilePicture },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
 
-    if (response.data) {
       const updatedUser = {
         ...user,
         name: response.data.name,
         profilePicture: response.data.profile_picture || response.data.profilePicture || undefined,
-        createdAt: user.createdAt, // Preserve existing createdAt
+        createdAt: user.createdAt,
       };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Failed to update profile:', error);
     }
   };
 
