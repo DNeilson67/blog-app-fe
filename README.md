@@ -7,7 +7,7 @@ A modern, full-featured blog application built with Next.js 16, React 19, TypeSc
 Before running this project, ensure you have:
 
 - **Node.js** 18.0 or higher
-- **npm**, **yarn**, **pnpm**, or **bun** package manager
+- **npm** package manager
 - **Backend API** running (see [blog-app-be](../blog-app-be/README.md))
 
 ## Project Setup
@@ -35,6 +35,12 @@ npm run dev
 The application will be available at [http://localhost:3000](http://localhost:3000)
 
 ## How to Interact with the Application
+
+You are able to use this demo account below to test the application:
+```
+email: john@example.com
+password: password123
+```
 
 ### User Authentication Flow
 
