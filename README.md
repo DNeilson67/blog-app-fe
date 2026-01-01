@@ -87,3 +87,9 @@ The application will be available at [http://localhost:3000](http://localhost:30
 - Navigate to `/profile` to view your profile
 - Edit your name and profile picture
 - View all posts you've created
+
+## Design Decisions and Assumptions
+
+The blog app is built using Next.js App Router with client-side rendering to support dynamic content and authentication handling. React Context API is used for state management since it is simple and sufficient for the app’s needs. Axios handles API communication for cleaner requests and easier error handling, while the UI is built with Radix UI and Tailwind CSS to ensure accessibility and flexible styling. Markdown support is included so users can easily format blog content.
+
+The app assumes a straightforward usage flow. Authentication is handled using JWT stored in localStorage, and all data is managed by the backend. Posts are written in Markdown, categories are simple text inputs, and profile pictures are provided via image URLs. The application is designed for modern browsers, uses responsive layouts, and provides user feedback through toast notifications.
