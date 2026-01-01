@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blog Application - Frontend
 
-## Getting Started
+A modern, full-featured blog application built with Next.js 16, React 19, TypeScript, and Tailwind CSS. This application provides a complete blogging platform with user authentication, post creation, commenting, and profile management.
 
-First, run the development server:
+## Prerequisites
+
+Before running this project, ensure you have:
+
+- **Node.js** 18.0 or higher
+- **npm**, **yarn**, **pnpm**, or **bun** package manager
+- **Backend API** running (see [blog-app-be](../blog-app-be/README.md))
+
+## Project Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### 3. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will be available at [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to Interact with the Application
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### User Authentication Flow
 
-## Learn More
+1. **Register**: Navigate to `/register` and create a new account
+   - Provide email, password, and name
+   - System automatically logs you in after registration
 
-To learn more about Next.js, take a look at the following resources:
+2. **Login**: Navigate to `/login` with existing credentials
+   - JWT token is stored in localStorage
+   - Token is included in all authenticated API requests
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Logout**: Click the logout button in the navigation bar
+   - Token is removed from localStorage
+   - User is redirected to home page
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Creating and Managing Posts
 
-## Deploy on Vercel
+1. **Create Post**: 
+   - Must be logged in
+   - Navigate to `/create`
+   - Fill in title, content (Markdown supported), excerpt, and category
+   - Submit to create post
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **View Post**: Click on any post title from the home page
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Edit Post**: 
+   - Only available to post author
+   - Click "Edit" button on post detail page
+   - Update post content and save
+
+4. **Delete Post**:
+   - Only available to post author
+   - Click "Delete" button on post detail page
+   - Confirm deletion
+
+### Commenting on Posts
+
+1. **Add Comment**:
+   - Must be logged in
+   - Navigate to any post
+   - Type comment in the text box at the bottom
+   - Submit to add comment
+
+2. **Edit/Delete Comment**:
+   - Only available to comment author
+   - Click edit/delete icons next to your comments
+
+### Profile Management
+
+- Navigate to `/profile` to view your profile
+- Edit your name and profile picture
+- View all posts you've created
